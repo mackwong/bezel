@@ -23,6 +23,6 @@ func NewRootCmd() *cobra.Command {
 }
 
 func bezelPersistentPreRun(cmd *cobra.Command, args []string) {
-	log.SetFormatter(&log.TextFormatter{})
+	log.SetFormatter(&log.TextFormatter{DisableTimestamp:true})
 	log.SetLevel(log.InfoLevel)
 }

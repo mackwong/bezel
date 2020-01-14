@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	GlobalConfigFile = "edge-config.yaml"
+	GlobalConfigFile = "./edge-config.yaml"
 	GenerateSubConfig bool
 )
 
@@ -24,14 +24,12 @@ func NewCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create global config for edge cluster",
 		RunE: func(cmd *cobra.Command, args []string) error{
-			pwd, _ := os.Getwd()
-			gPath := path.Join(pwd, GlobalConfigFile)
 			input := ScanConfigFields()
-			if err := writeEdgeConfigYaml(input, gPath); err != nil {
+			if err := writeEdgeConfigYaml(input, GlobalConfigFile); err != nil {
 				return err
 			}
 			if GenerateSubConfig {
-				if err := SplitFromGlobalConfig(gPath); err != nil {
+				if err := SplitFromGlobalConfig(GlobalConfigFile); err != nil {
 					return nil
 				}
 			}
@@ -88,10 +86,10 @@ func ScanInputToMapCache(fieldsMap map[string]string) map[string]string {
 		listToSort = append(listToSort, f)
 	}
 	sort.Strings(listToSort)
-	log.Println("All fields you should configure:", listToSort)
+	log.Println("All fields you should configure are:", listToSort)
 	for _, field := range listToSort {
 		for {
-			log.Println("Please configure", field)
+			log.Printf("Please configure %s:\n", field)
 			input := utils.ScanCmdline()
 			if input == "" {
 				log.Infof("No input on field %s, will use the default value. ", field)
