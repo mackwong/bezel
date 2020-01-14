@@ -25,7 +25,7 @@ import (
 )
 
 var machineNum, masterNum int
-var roleMaster = 0
+var roleMaster int
 
 func ScanCmdline() string {
 	//fmt.Println("scanning")
@@ -39,63 +39,53 @@ func ScanCmdline() string {
 func ValidateScanValue(field string, value string) bool {
 	switch field {
 	case "arranger":
-		arranger_const := map[string]bool{"k3s": true, "ke": true, "edgesite": true}
-		if arranger_const[value] == false {
+		arrangerConst := map[string]bool{"k3s": true, "ke": true, "edgesite": true}
+		if !arrangerConst[value] {
 			logrus.Errorf("Arranger MUST be one of k3s, k3, edgesite")
-			return false
-		} else {
-			return true
 		}
+		return arrangerConst[value]
 	case "upstreamDNS", "dockerRegistry", "k8sHAVip", "ip", "gatewayIP", "netmask":
 		if !ValidateIP(value) {
 			logrus.Errorf("Not a valid IP address")
 			return false
-		} else {
-			return true
 		}
+		return true
 	case "role":
-		if (value != "master") && (value != "worker") {
+		if value != "master" && value != "worker" {
 			logrus.Errorf("The role must be master or worker")
 			return false
 		} else {
 			if value == "master" {
 				roleMaster++
 				if roleMaster > masterNum {
-					fmt.Println("--------------------------------------------------------")
-					fmt.Println("You have configured master role number more than one in the global config file.")
-					fmt.Println("Please don`t add master role any more.")
+					logrus.Errorf("You have configured master role number more than one in the global config file.")
+					logrus.Errorf("Please don`t add master role any more.")
 					return false
-				} else {
-					return true
 				}
+				return true
 			}
 		}
 	case "machine-num":
 		var ch bool
 		if machineNum, ch = IfNumeral(value); ch {
 			return true
-		} else {
-			logrus.Errorf("%q not a number. \n", value)
-			return false
 		}
+		logrus.Errorf("%q not a number. \n", value)
+		return false
 	case "master-num":
 		var st bool
 		if masterNum, st = IfNumeral(value); st {
-			if (value != "1") && (value != "3") {
+			if value != "1" && value != "3" {
 				fmt.Println("Master number must be 1 or 3.")
 				return false
-			} else {
-				if masterNum > machineNum {
-					logrus.Errorf("Master number is more than the whole. Please ensure master number is less than or equal machine number.")
-					return false
-				} else {
-					return true
-				}
+			} else if masterNum > machineNum {
+				logrus.Errorf("Master number is more than the whole. Please ensure master number is less than or equal machine number.")
+				return false
 			}
-		} else {
-			fmt.Printf("%q not a number. \n", value)
-			return false
+			return true
 		}
+		logrus.Errorf("%q not a number. \n", value)
+		return false
 	default:
 		return true
 	}
@@ -105,37 +95,24 @@ func ValidateScanValue(field string, value string) bool {
 func ValidateIP(ip string) bool {
 	if net.ParseIP(ip) == nil {
 		return false
-	} else {
-		return true
 	}
+	return true
 }
 
 func IfNumeral(s string) (int, bool) {
 	if v, err := strconv.Atoi(s); err == nil {
 		return v, true
-	} else {
-		return -1, false
 	}
+	return -1, false
 }
 
-func IsExist(path string) bool {
+func IsExist(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err != nil {
-		if os.IsExist(err) {
-			return true
-		}
 		if os.IsNotExist(err) {
-			return false
+			return false, nil
 		}
-		//fmt.Println(err)
-		return false
+		return false, err
 	}
-	return true
-}
-
-func CreateFile(path string) {
-	_, err := os.Create(path)
-	if err != nil {
-		fmt.Println("create file error,", err)
-	}
+	return true, nil
 }

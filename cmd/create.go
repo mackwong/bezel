@@ -15,15 +15,15 @@ import (
 )
 
 var (
-	GlobalConfigFile = "./edge-config.yaml"
+	GlobalConfigFile  = "./edge-config.yaml"
 	GenerateSubConfig bool
 )
 
 func NewCreateCmd() *cobra.Command {
 	createCmd := &cobra.Command{
 		Use:   "create",
-		Short: "Create global config for edge cluster",
-		RunE: func(cmd *cobra.Command, args []string) error{
+		Short: "Create global config form edge cluster",
+		RunE: func(cmd *cobra.Command, args []string) error {
 			input := ScanConfigFields()
 			if err := writeEdgeConfigYaml(input, GlobalConfigFile); err != nil {
 				return err
@@ -119,7 +119,7 @@ func writeEdgeConfigYaml(gc *model.GlobalConfig, path string) (err error) {
 	return
 }
 
-func SplitFromGlobalConfig(cfgPath string) (err error){
+func SplitFromGlobalConfig(cfgPath string) (err error) {
 	cfg, err := ioutil.ReadFile(cfgPath)
 	if err != nil {
 		log.Errorf("read file %s err: %s", cfgPath, err)
@@ -184,7 +184,10 @@ func WriteSubConfigYaml(config *model.SubConfig, parentDir string, fileName stri
 	fullPath := path.Join(parentDir, fileName)
 	log.Infof("Sub config will write to %s", fullPath)
 
-	if !utils.IsExist(parentDir) {
+	if exist, err := utils.IsExist(parentDir); err != nil {
+		log.Errorf("%s", err)
+		return err
+	} else if !exist {
 		err = os.MkdirAll(parentDir, 0644)
 		log.Errorf("can not mkdir dir %s, err: %s", parentDir, err)
 		return
@@ -195,4 +198,3 @@ func WriteSubConfigYaml(config *model.SubConfig, parentDir string, fileName stri
 	}
 	return
 }
-

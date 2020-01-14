@@ -1,18 +1,18 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 )
 
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "bezel",
-		Short: "Bezel control interface.",
+		Use:               "bezel",
+		Short:             "Bezel control interface.",
 		SilenceUsage:      true,
 		DisableAutoGenTag: true,
-		Long: "",
-		PersistentPreRun: bezelPersistentPreRun,
+		Long:              "",
+		PersistentPreRun:  bezelPersistentPreRun,
 	}
 	rootCmd.PersistentFlags().Bool("debug", false, "show debug information")
 
@@ -23,6 +23,6 @@ func NewRootCmd() *cobra.Command {
 }
 
 func bezelPersistentPreRun(cmd *cobra.Command, args []string) {
-	log.SetFormatter(&log.TextFormatter{DisableTimestamp:true})
+	log.SetFormatter(&log.TextFormatter{DisableTimestamp: true})
 	log.SetLevel(log.InfoLevel)
 }
