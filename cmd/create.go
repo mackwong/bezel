@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -119,7 +120,8 @@ func generateMasterMachine(config *model.BezelConfig) ([]*model.MachineConfig, e
 
 		}
 	}
-	for i := 0; i < config.MasterNum-len(config.MasterIP); i++ {
+	num := int(config.MasterNum) - len(config.MasterIP)
+	for i := 0; i < num; i++ {
 	loop:
 		for _, ipr := range config.IPRange {
 			ips, err := utils.GetAllIPS(ipr.IPRange)
@@ -156,7 +158,7 @@ func generateWorkerMachine(masters []*model.MachineConfig, config *model.BezelCo
 	var workerIndex int
 	role := "worker"
 	out := make([]*model.MachineConfig, 0)
-	for i := 0; i < config.MachineNum-config.MasterNum; i++ {
+	for i := 0; i < int(config.MachineNum-config.MasterNum); i++ {
 	loop:
 		for _, ipr := range config.IPRange {
 			ips, err := utils.GetAllIPS(ipr.IPRange)
@@ -226,7 +228,7 @@ func ScanConfigFields() (*model.GlobalConfig, error) {
 
 	diamond := ScanInputToStruct(defaultDiamondConfig).(*model.DiamondConfig)
 	log.Infof("Your have %d machine to configure details. \n", diamond.MachineNum)
-	for i := 0; i < diamond.MachineNum; i++ {
+	for i := 0; i < int(diamond.MachineNum); i++ {
 		log.Printf("\nYour are configuring the machine %d: \n", i)
 		defaultMachineConfig := model.NewDefaultMachineConfig()
 		machine := ScanInputToStruct(defaultMachineConfig).(*model.MachineConfig)
@@ -239,6 +241,8 @@ func ScanConfigFields() (*model.GlobalConfig, error) {
 }
 
 func ScanInputToStruct(obj interface{}) interface{} {
+	var value interface{}
+	var err error
 	v := reflect.ValueOf(obj)
 	if v.Kind() != reflect.Ptr {
 		log.Errorf("only support point")
@@ -260,11 +264,24 @@ func ScanInputToStruct(obj interface{}) interface{} {
 				log.Infof("No input on field %s, will use the default value. ", fName)
 				break
 			}
-			if err := utils.ValidateValue(fName, input); err != nil {
+			if fName == "MachineNum" || fName == "MasterNum" {
+				value, err = strconv.ParseInt(input, 0, 64)
+				if err != nil {
+					log.Fatal(err)
+				}
+			} else {
+				value = input
+			}
+			if err := utils.ValidateValue(fName, value); err != nil {
 				log.Errorf("invalidate value of field %s: %s please input the right value", fName, err)
 				continue
 			}
-			vv.Field(i).SetString(input)
+
+			if fName == "MachineNum" || fName == "MasterNum" {
+				vv.Field(i).SetInt(value.(int64))
+			} else {
+				vv.Field(i).SetString(value.(string))
+			}
 			break
 		}
 	}

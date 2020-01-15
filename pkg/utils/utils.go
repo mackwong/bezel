@@ -25,8 +25,7 @@ import (
 	"regexp"
 )
 
-var machineNum, masterNum int
-var roleMaster int
+var machineNum, masterNum, roleMaster int64
 
 func ScanCmdline() string {
 	input := bufio.NewScanner(os.Stdin)
@@ -62,16 +61,16 @@ func ValidateValue(field string, value interface{}) (err error) {
 			}
 		}
 	case "MachineNum":
-		machineNum = value.(int)
-		if value.(int) > 1000 {
+		machineNum = value.(int64)
+		if machineNum > 1000 {
 			return fmt.Errorf("%q can not large than 1000. \n", value)
 		}
 	case "MasterIP":
-		if len(value.([]string)) > masterNum {
+		if len(value.([]string)) > int(masterNum) {
 			return fmt.Errorf("Master IP list are more than masterNum")
 		}
 	case "MasterNum":
-		masterNum = value.(int)
+		masterNum = value.(int64)
 		if masterNum != 1 && masterNum != 3 {
 			return fmt.Errorf("Master number must be 1 or 3.")
 		}

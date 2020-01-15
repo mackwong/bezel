@@ -14,8 +14,8 @@ type DiamondConfig struct {
 	Arranger       string `yaml:"arranger"`
 	UpstreamDNS    string `yaml:"upstreamDNS"`
 	DockerRegistry string `yaml:"dockerRegistry"`
-	MachineNum     int    `yaml:"machine-num"`
-	MasterNum      int    `yaml:"masternum"`
+	MachineNum     int64  `yaml:"machine-num"`
+	MasterNum      int64  `yaml:"masternum"`
 	K8sMasterIP    string `yaml:"k8sMasterIP"`
 }
 
@@ -75,8 +75,8 @@ type Peer struct {
 
 type BezelConfig struct {
 	Name           string     `yaml:"name"`
-	MachineNum     int        `yaml:"machine-num"`
-	MasterNum      int        `yaml:"master-num"`
+	MachineNum     int64      `yaml:"machine-num"`
+	MasterNum      int64      `yaml:"master-num"`
 	Arranger       string     `yaml:"arranger"`
 	UpstreamDNS    string     `yaml:"upstreamDNS"`
 	DockerRegistry string     `yaml:"dockerRegistry"`
