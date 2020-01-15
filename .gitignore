@@ -1,3 +1,5 @@
 .idea
 bin/
 vendor
+sub/
+edge-config.yaml

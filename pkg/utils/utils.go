@@ -17,8 +17,9 @@ package utils
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
 	"strconv"
@@ -28,82 +29,58 @@ var machineNum, masterNum int
 var roleMaster int
 
 func ScanCmdline() string {
-	//fmt.Println("scanning")
 	input := bufio.NewScanner(os.Stdin)
 	if input.Scan() {
-		fmt.Println("Your input is: ", input.Text(), ".")
+		log.Debugf("Your input is: %s", input.Text())
 	}
 	return input.Text()
 }
 
-func ValidateScanValue(field string, value string) bool {
+func ValidateScanValue(field string, value string) (err error) {
 	switch field {
-	case "arranger":
+	case "Name", "HostName":
+		if len(value) > 64 {
+			return errors.New("name is too long")
+		}
+	case "Arranger":
 		arrangerConst := map[string]bool{"k3s": true, "ke": true, "edgesite": true}
 		if !arrangerConst[value] {
-			logrus.Errorf("Arranger MUST be one of k3s, k3, edgesite")
+			return errors.New("Arranger MUST be one of k3s, k3, edgesite")
 		}
-		return arrangerConst[value]
-	case "upstreamDNS", "dockerRegistry", "k8sHAVip", "ip", "gatewayIP", "netmask":
+	case "UpstreamDNS", "DockerRegistry", "K8sMasterIP", "IP", "GatewayIP", "Netmask":
 		if !ValidateIP(value) {
-			logrus.Errorf("Not a valid IP address")
-			return false
+			return errors.New("Not a valid IP address")
 		}
-		return true
-	case "role":
+	case "Role":
 		if value != "master" && value != "worker" {
-			logrus.Errorf("The role must be master or worker")
-			return false
-		} else {
-			if value == "master" {
-				roleMaster++
-				if roleMaster > masterNum {
-					logrus.Errorf("You have configured master role number more than one in the global config file.")
-					logrus.Errorf("Please don`t add master role any more.")
-					return false
-				}
-				return true
+			return errors.New("The role must be master or worker")
+		}
+		if value == "master" {
+			roleMaster++
+			if roleMaster > masterNum {
+				return errors.New("You have configured master role number more than one in the global config file.")
 			}
 		}
-	case "machine-num":
-		var ch bool
-		if machineNum, ch = IfNumeral(value); ch {
-			return true
+	case "MachineNum":
+		if machineNum, err = strconv.Atoi(value); err != nil {
+			return fmt.Errorf("%q not a number. \n", value)
 		}
-		logrus.Errorf("%q not a number. \n", value)
-		return false
-	case "master-num":
-		var st bool
-		if masterNum, st = IfNumeral(value); st {
-			if value != "1" && value != "3" {
-				fmt.Println("Master number must be 1 or 3.")
-				return false
-			} else if masterNum > machineNum {
-				logrus.Errorf("Master number is more than the whole. Please ensure master number is less than or equal machine number.")
-				return false
-			}
-			return true
+	case "MasterNum":
+		if masterNum, err = strconv.Atoi(value); err != nil {
+			return fmt.Errorf("%q not a number. \n", value)
 		}
-		logrus.Errorf("%q not a number. \n", value)
-		return false
-	default:
-		return true
+		if masterNum != 1 && masterNum != 3 {
+			return fmt.Errorf("Master number must be 1 or 3.")
+		}
+		if masterNum > machineNum {
+			return fmt.Errorf("Master number is more than the whole. Please ensure master number is less than or equal machine number.")
+		}
 	}
-	return true
+	return nil
 }
 
 func ValidateIP(ip string) bool {
-	if net.ParseIP(ip) == nil {
-		return false
-	}
-	return true
-}
-
-func IfNumeral(s string) (int, bool) {
-	if v, err := strconv.Atoi(s); err == nil {
-		return v, true
-	}
-	return -1, false
+	return net.ParseIP(ip) != nil
 }
 
 func IsExist(path string) (bool, error) {

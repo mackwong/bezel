@@ -2,107 +2,99 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/alecthomas/gometalinter/_linters/src/gopkg.in/yaml.v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gitlab.bj.sensetime.com/diamond/bezel/pkg/model"
 	"gitlab.bj.sensetime.com/diamond/bezel/pkg/utils"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"path"
-	"sort"
+	"path/filepath"
+	"reflect"
 	"strconv"
 )
 
 var (
-	GlobalConfigFile  = "./edge-config.yaml"
-	GenerateSubConfig bool
+	GlobalConfigFileName = "edge-config.yaml"
+	GenerateSubConfig    bool
+	OutPutDir            = "./"
 )
 
 func NewCreateCmd() *cobra.Command {
 	createCmd := &cobra.Command{
-		Use:   "create",
-		Short: "Create global config form edge cluster",
+		Use:           "create",
+		Short:         "Create global config form edge cluster",
+		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			input := ScanConfigFields()
-			if err := writeEdgeConfigYaml(input, GlobalConfigFile); err != nil {
+			globalConfigFile := filepath.Join(OutPutDir, GlobalConfigFileName)
+			if err := writeEdgeConfigYaml(input, globalConfigFile); err != nil {
 				return err
 			}
 			if GenerateSubConfig {
-				if err := SplitFromGlobalConfig(GlobalConfigFile); err != nil {
+				if err := SplitFromGlobalConfig(globalConfigFile, OutPutDir); err != nil {
 					return nil
 				}
 			}
-			log.Info("Sub config files will be at `sub` path.")
 			return nil
 		},
 	}
 	createCmd.Flags().BoolVarP(&GenerateSubConfig, "sub-config", "s", true, "If sub-config(s) flag used, it will generate both global and sub config files.")
+	createCmd.Flags().StringVarP(&OutPutDir, "output", "o", "./", "The dir for store configs")
 	return createCmd
 }
 
 func ScanConfigFields() *model.GlobalConfig {
+	machineConfigs := make([]*model.MachineConfig, 0)
+	defaultDiamondConfig := model.NewDefaultDiamondConfig()
 
-	var diamondFields = make(map[string]string)
-	var machineFields = make(map[string]string)
-	var machineConfigs = make(map[int]map[string]string)
-
-	// TODO add default value on interactive cmdline
-	diamondFields["name"] = "diamond-edge-ha"
-	diamondFields["arranger"] = "edgesite"
-	diamondFields["upstreamDNS"] = "114.114.114.114"
-	diamondFields["dockerRegistry"] = "10.5.49.73"
-	diamondFields["machine-num"] = "4"
-	diamondFields["master-num"] = "3"
-	diamondFields["k8sMasterIP"] = "10.4.72.231"
-
-	// TODO add default value on interactive cmdline
-	machineFields["name"] = "test-00"
-	machineFields["hostname"] = "test-00"
-	machineFields["ip"] = "10.4.72.140"
-	machineFields["netmask"] = "255.255.255.0"
-	machineFields["role"] = "master"
-	machineFields["gatewayIP"] = "10.4.72.1"
-
-	df := ScanInputToMapCache(diamondFields)
-
-	machineNum, _ := strconv.Atoi(df["machine-num"])
-	log.Println("=====================================")
-	log.Printf("Your have %d machine to configure details. \n", machineNum)
+	diamond := ScanInputToStruct(defaultDiamondConfig).(*model.DiamondConfig)
+	machineNum, _ := strconv.Atoi(diamond.MachineNum)
+	log.Infof("Your have %d machine to configure details. \n", machineNum)
 	for i := 0; i < machineNum; i++ {
-		log.Println("=====================================")
-		log.Printf("Your are configuring the machine %d. \n", i)
-		log.Println("=====================================")
-		mf := ScanInputToMapCache(machineFields)
-		machineConfigs[i] = mf
+		log.Printf("\nYour are configuring the machine %d: \n", i)
+		defaultMachineConfig := model.NewDefaultMachineConfig()
+		machineConfig := ScanInputToStruct(defaultMachineConfig).(*model.MachineConfig)
+		machineConfigs = append(machineConfigs, machineConfig)
 	}
-	return model.NewGlobalConfig(df, machineConfigs)
+	return &model.GlobalConfig{
+		Diamond:  diamond,
+		Machines: machineConfigs,
+	}
 }
 
-func ScanInputToMapCache(fieldsMap map[string]string) map[string]string {
-	var l = make(map[string]string)
-	var listToSort = []string{}
-	for f := range fieldsMap {
-		listToSort = append(listToSort, f)
+func ScanInputToStruct(obj interface{}) interface{} {
+	v := reflect.ValueOf(obj)
+	if v.Kind() != reflect.Ptr {
+		log.Errorf("only support point")
+		return nil
 	}
-	sort.Strings(listToSort)
-	log.Println("All fields you should configure are:", listToSort)
-	for _, field := range listToSort {
+	vv := v.Elem()
+	t := vv.Type()
+
+	if vv.Kind() != reflect.Struct {
+		log.Errorf("cat not scan input to nonStruct")
+		return nil
+	}
+	for i := 0; i < vv.NumField(); i++ {
+		fName := t.Field(i).Name
 		for {
-			log.Printf("Please configure %s:\n", field)
+			log.Infof("Please configure %s:\n", fName)
 			input := utils.ScanCmdline()
 			if input == "" {
-				log.Infof("No input on field %s, will use the default value. ", field)
+				log.Infof("No input on field %s, will use the default value. ", fName)
 				break
 			}
-			if utils.ValidateScanValue(field, input) {
-				l[field] = input
-				break
+			if err := utils.ValidateScanValue(fName, input); err != nil {
+				log.Errorf("invalidate value of field %s: %s please input the right value", fName, err)
+				continue
 			}
-			log.Warningf("invalidate value of field %s, please input the right value", field)
+			vv.Field(i).SetString(input)
+			break
 		}
 	}
-	return l
+	return obj
 }
 
 func writeEdgeConfigYaml(gc *model.GlobalConfig, path string) (err error) {
@@ -119,8 +111,9 @@ func writeEdgeConfigYaml(gc *model.GlobalConfig, path string) (err error) {
 	return
 }
 
-func SplitFromGlobalConfig(cfgPath string) (err error) {
-	cfg, err := ioutil.ReadFile(cfgPath)
+func SplitFromGlobalConfig(cfgPath, outputDir string) (err error) {
+	var cfg []byte
+	cfg, err = ioutil.ReadFile(cfgPath)
 	if err != nil {
 		log.Errorf("read file %s err: %s", cfgPath, err)
 		return
@@ -136,16 +129,9 @@ func SplitFromGlobalConfig(cfgPath string) (err error) {
 	haPeer := make(map[string]string)
 	for _, machine := range gc.Machines {
 		if machine.Role == "master" {
-			haPeer[machine.Hostname] = machine.IP
+			haPeer[machine.HostName] = machine.IP
 		}
 	}
-
-	sc := make(map[string]string)
-	sc["arranger"] = gc.Diamond.Arranger
-	sc["upstreamDNS"] = gc.Diamond.UpstreamDNS
-	sc["k8sMasterIP"] = gc.Diamond.K8sMasterIP
-	sc["dockerRegistry"] = gc.Diamond.DockerRegistry
-	//sc["ha_peer"] = haPeer
 
 	var haPeers []model.Peer
 	if gc.Diamond.MasterNum == "1" {
@@ -155,20 +141,21 @@ func SplitFromGlobalConfig(cfgPath string) (err error) {
 	}
 
 	for _, machine := range gc.Machines {
-		sc["hostname"] = machine.Hostname
-		sc["ip"] = machine.IP
-		sc["netmask"] = machine.Netmask
-		sc["gatewayIP"] = machine.GatewayIP
-		sc["role"] = machine.Role
-		nsc := model.NewSubConfig(sc, haPeers)
-		var outFile string
-		if machine.Role == "master" {
-			outFile = fmt.Sprintf("sub-edge-config-master-%s.yaml", machine.IP)
-		} else {
-			outFile = fmt.Sprintf("sub-edge-config-worker-%s.yaml", machine.IP)
+		subConfig := &model.SubConfig{
+			Arranger:       gc.Diamond.Arranger,
+			UpstreamDNS:    gc.Diamond.UpstreamDNS,
+			K8sMasterIP:    gc.Diamond.K8sMasterIP,
+			DockerRegistry: gc.Diamond.DockerRegistry,
+			Hostname:       machine.HostName,
+			IP:             machine.IP,
+			Netmask:        machine.Netmask,
+			GatewayIP:      machine.GatewayIP,
+			Role:           machine.Role,
+			HaPeer:         haPeers,
 		}
-		err = WriteSubConfigYaml(nsc, "./sub", outFile)
-		if err != nil {
+		outFile := fmt.Sprintf("sub-edge-config-%s-%s.yaml", subConfig.Role, subConfig.IP)
+		dir := filepath.Join(outputDir, "sub")
+		if err = WriteSubConfigYaml(subConfig, dir, outFile); err != nil {
 			return
 		}
 	}
@@ -188,9 +175,10 @@ func WriteSubConfigYaml(config *model.SubConfig, parentDir string, fileName stri
 		log.Errorf("%s", err)
 		return err
 	} else if !exist {
-		err = os.MkdirAll(parentDir, 0644)
-		log.Errorf("can not mkdir dir %s, err: %s", parentDir, err)
-		return
+		if err = os.MkdirAll(parentDir, 0755); err != nil {
+			log.Errorf("can not mkdir dir %s, err: %s", parentDir, err)
+			return err
+		}
 	}
 	err = ioutil.WriteFile(fullPath, yamlByte, 0644)
 	if err != nil {

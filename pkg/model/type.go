@@ -3,13 +3,13 @@ package model
 // Gloabl Config Section
 
 type GlobalConfig struct {
-	Diamond  Diamond
-	Machines []Machine
+	Diamond  *DiamondConfig
+	Machines []*MachineConfig
 }
 
-// Diamond Items Section
+// DiamondConfig Items Section
 
-type Diamond struct {
+type DiamondConfig struct {
 	Name           string `yaml:"name"`
 	Arranger       string `yaml:"arranger"`
 	UpstreamDNS    string `yaml:"upstreamDNS"`
@@ -19,50 +19,41 @@ type Diamond struct {
 	K8sMasterIP    string `yaml:"k8sMasterIP"`
 }
 
-func NewGlobalConfig(di map[string]string, mal map[int]map[string]string) *GlobalConfig {
-	return &GlobalConfig{
-		Diamond: Diamond{
-			Name:           di["name"],
-			Arranger:       di["arranger"],
-			UpstreamDNS:    di["upstreamDNS"],
-			DockerRegistry: di["dockerRegistry"],
-			MachineNum:     di["machine-num"],
-			MasterNum:      di["master-num"],
-			K8sMasterIP:    di["k8sMasterIP"],
-		},
-		Machines: MachineInfoFromMap(mal),
+func NewDefaultDiamondConfig() *DiamondConfig {
+	return &DiamondConfig{
+		Name:           "diamond-edge-ha",
+		Arranger:       "edgesite",
+		UpstreamDNS:    "114.114.114.114",
+		DockerRegistry: "10.5.49.73",
+		MachineNum:     "4",
+		MasterNum:      "3",
+		K8sMasterIP:    "10.4.72.231",
 	}
 }
 
-// Machine Items Section
+// MachineConfig Items Section
 
-type Machine struct {
+type MachineConfig struct {
 	Name      string `yaml:"name"`
-	Hostname  string `yaml:"hostname"`
+	HostName  string `yaml:"hostname"`
 	Role      string `yaml:"role"`
 	IP        string `yaml:"ip"`
 	GatewayIP string `yaml:"gatewayIP"`
 	Netmask   string `yaml:"netmask"`
 }
 
-func MachineInfoFromMap(mal map[int]map[string]string) []Machine {
-	machines := []Machine{}
-	for _, ma := range mal {
-		machine := &Machine{
-			Name:      ma["name"],
-			Hostname:  ma["hostname"],
-			Role:      ma["role"],
-			IP:        ma["ip"],
-			GatewayIP: ma["gatewayIP"],
-			Netmask:   ma["netmask"],
-		}
-		machines = append(machines, *machine)
+func NewDefaultMachineConfig() *MachineConfig {
+	return &MachineConfig{
+		Name:      "test-00",
+		HostName:  "test-00",
+		Role:      "master",
+		IP:        "10.4.72.140",
+		GatewayIP: "10.4.72.1",
+		Netmask:   "255.255.255.0",
 	}
-	return machines
 }
 
 // Sub Config Section
-
 type SubConfig struct {
 	Arranger       string `yaml:"arranger"`
 	Role           string `yaml:"role"`
@@ -76,23 +67,7 @@ type SubConfig struct {
 	HaPeer         []Peer `yaml:"ha-peer"`
 }
 
-func NewSubConfig(sc map[string]string, hp []Peer) *SubConfig {
-	return &SubConfig{
-		Arranger:       sc["arranger"],
-		Role:           sc["role"],
-		UpstreamDNS:    sc["upstreamDNS"],
-		Hostname:       sc["hostname"],
-		IP:             sc["ip"],
-		GatewayIP:      sc["gatewayIP"],
-		Netmask:        sc["netmask"],
-		K8sMasterIP:    sc["k8sMasterIP"],
-		DockerRegistry: sc["dockerRegistry"],
-		HaPeer:         hp,
-	}
-}
-
 // Ha Peer Section
-
 type Peer struct {
 	Hostname string `yaml:"hostname"`
 	IP       string `yaml:"ip"`
