@@ -3,3 +3,4 @@ bin/
 vendor
 sub/
 edge-config.yaml
+demo.yaml

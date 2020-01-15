@@ -1,0 +1,16 @@
+name: diamond-edge-ha
+arranger: edgesite
+upstreamDNS: 114.114.114.114
+dockerRegistry: 10.5.49.73
+k8sMasterIP: 123.123.123.231
+ipRange:
+  - ipRange: 10.4.72.1/24
+    gatewayIP: 10.4.72.254
+    netmask: 255.255.255.0
+  - ipRange: 10.4.73.1/32
+    gatewayIP: 10.4.73.254
+    netmask: 255.255.255.255
+machine-num: 4
+master-num: 3
+name-prefix: ubuntu
+hostname-prefix: node

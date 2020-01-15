@@ -22,7 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
-	"strconv"
+	"regexp"
 )
 
 var machineNum, masterNum int
@@ -36,39 +36,42 @@ func ScanCmdline() string {
 	return input.Text()
 }
 
-func ValidateScanValue(field string, value string) (err error) {
+func ValidateValue(field string, value interface{}) (err error) {
 	switch field {
 	case "Name", "HostName":
-		if len(value) > 64 {
-			return errors.New("name is too long")
+		if match, _ := regexp.MatchString("[A-Za-z][A-Za-z0-9_]*", value.(string)); !match {
+			return errors.New("name and hostname shoule match [A-Za-z][A-Za-z0-9_]*")
 		}
 	case "Arranger":
 		arrangerConst := map[string]bool{"k3s": true, "ke": true, "edgesite": true}
-		if !arrangerConst[value] {
+		if !arrangerConst[value.(string)] {
 			return errors.New("Arranger MUST be one of k3s, k3, edgesite")
 		}
 	case "UpstreamDNS", "DockerRegistry", "K8sMasterIP", "IP", "GatewayIP", "Netmask":
-		if !ValidateIP(value) {
+		if !ValidateIP(value.(string)) {
 			return errors.New("Not a valid IP address")
 		}
 	case "Role":
-		if value != "master" && value != "worker" {
+		if value != "master" && value.(string) != "worker" {
 			return errors.New("The role must be master or worker")
 		}
-		if value == "master" {
+		if value.(string) == "master" {
 			roleMaster++
 			if roleMaster > masterNum {
 				return errors.New("You have configured master role number more than one in the global config file.")
 			}
 		}
 	case "MachineNum":
-		if machineNum, err = strconv.Atoi(value); err != nil {
-			return fmt.Errorf("%q not a number. \n", value)
+		machineNum = value.(int)
+		if value.(int) > 1000 {
+			return fmt.Errorf("%q can not large than 1000. \n", value)
+		}
+	case "MasterIP":
+		if len(value.([]string)) > masterNum {
+			return fmt.Errorf("Master IP list are more than masterNum")
 		}
 	case "MasterNum":
-		if masterNum, err = strconv.Atoi(value); err != nil {
-			return fmt.Errorf("%q not a number. \n", value)
-		}
+		masterNum = value.(int)
 		if masterNum != 1 && masterNum != 3 {
 			return fmt.Errorf("Master number must be 1 or 3.")
 		}
@@ -92,4 +95,40 @@ func IsExist(path string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func IsInCIDR(tip, cidr string) (bool, error) {
+	ips, err := GetAllIPS(cidr)
+	if err != nil {
+		return false, err
+	}
+	// remove network address and broadcast address?
+	for _, p := range ips {
+		if p == tip {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func GetAllIPS(cidr string) ([]string, error) {
+	ip, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		log.Errorf("parse cidr err: %s", err)
+		return nil, err
+	}
+	var ips []string
+	for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); inc(ip) {
+		ips = append(ips, ip.String())
+	}
+	return ips, nil
+}
+
+func inc(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	}
 }

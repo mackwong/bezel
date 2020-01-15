@@ -17,7 +17,7 @@ func NewRootCmd() *cobra.Command {
 		PersistentPreRun:  bezelPersistentPreRun,
 	}
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "show debug information")
-	rootCmd.AddCommand(NewCreateCmd(), NewParseCmd())
+	rootCmd.AddCommand(NewCreateCmd(), NewParseCmd(), NewGenerateCmd())
 
 	return rootCmd
 }

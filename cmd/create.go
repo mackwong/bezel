@@ -12,13 +12,15 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
-	"strconv"
+	"strings"
 )
 
+const GlobalConfigFileName = "edge-config.yaml"
+
 var (
-	GlobalConfigFileName = "edge-config.yaml"
-	GenerateSubConfig    bool
-	OutPutDir            = "./"
+	generateSubConfig bool
+	outPutDir         string
+	bezelConfig       string
 )
 
 func NewCreateCmd() *cobra.Command {
@@ -27,41 +29,213 @@ func NewCreateCmd() *cobra.Command {
 		Short:         "Create global config form edge cluster",
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			input := ScanConfigFields()
-			globalConfigFile := filepath.Join(OutPutDir, GlobalConfigFileName)
-			if err := writeEdgeConfigYaml(input, globalConfigFile); err != nil {
+			var gc *model.GlobalConfig
+			var err error
+			if bezelConfig != "" {
+				if gc, err = GetGlobalConfigByConfig(bezelConfig); err != nil {
+					return err
+				}
+			} else {
+				if gc, err = ScanConfigFields(); err != nil {
+					return err
+				}
+			}
+			globalConfigFile := filepath.Join(outPutDir, GlobalConfigFileName)
+			if err := writeEdgeConfigYaml(gc, globalConfigFile); err != nil {
 				return err
 			}
-			if GenerateSubConfig {
-				if err := SplitFromGlobalConfig(globalConfigFile, OutPutDir); err != nil {
+			if generateSubConfig {
+				if err := SplitFromGlobalConfig(globalConfigFile, outPutDir); err != nil {
 					return nil
 				}
 			}
 			return nil
 		},
 	}
-	createCmd.Flags().BoolVarP(&GenerateSubConfig, "sub-config", "s", true, "If sub-config(s) flag used, it will generate both global and sub config files.")
-	createCmd.Flags().StringVarP(&OutPutDir, "output", "o", "./", "The dir for store configs")
+	createCmd.Flags().BoolVarP(&generateSubConfig, "sub-config", "s", true, "If sub-config(s) flag used, it will generate both global and sub config files.")
+	createCmd.Flags().StringVarP(&outPutDir, "output", "o", "./", "The dir for store configs")
+	createCmd.Flags().StringVarP(&bezelConfig, "config", "c", "", "bezel config file")
 	return createCmd
 }
 
-func ScanConfigFields() *model.GlobalConfig {
-	machineConfigs := make([]*model.MachineConfig, 0)
+func GetGlobalConfigByConfig(configFile string) (*model.GlobalConfig, error) {
+	content, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		log.Errorf("read %s err: %s", configFile, err)
+		return nil, err
+	}
+
+	config := &model.BezelConfig{}
+	if err = yaml.Unmarshal(content, config); err != nil {
+		log.Errorf("unmarshal err: %s", err)
+		return nil, err
+	}
+	if err = validateBezelConfig(config); err != nil {
+		return nil, err
+	}
+
+	machines := make([]*model.MachineConfig, 0)
+	diamond := generateDiamondConfig(config)
+
+	masters, err := generateMasterMachine(config)
+	if err != nil {
+		return nil, err
+	}
+
+	worker, err := generateWorkerMachine(masters, config)
+	if err != nil {
+		return nil, err
+	}
+	machines = append(machines, masters...)
+	machines = append(machines, worker...)
+
+	return &model.GlobalConfig{
+		Diamond:  diamond,
+		Machines: machines,
+	}, nil
+}
+
+func generateMasterMachine(config *model.BezelConfig) ([]*model.MachineConfig, error) {
+	var masterIndex int
+	role := "master"
+	out := make([]*model.MachineConfig, 0)
+	for _, ip := range config.MasterIP {
+		for _, ipr := range config.IPRange {
+			isIn, err := utils.IsInCIDR(ip, ipr.IPRange)
+			if err != nil {
+				return nil, err
+			}
+			if isIn {
+				out = append(out, &model.MachineConfig{
+					Name:      fmt.Sprintf("%s-%s-%d", config.NamePrefix, role, masterIndex),
+					HostName:  fmt.Sprintf("%s-%s-%d", config.HostNamePrefix, role, masterIndex),
+					Role:      role,
+					IP:        ip,
+					GatewayIP: ipr.GatewayIP,
+					Netmask:   ipr.Netmask,
+				})
+				masterIndex++
+			}
+
+		}
+	}
+	for i := 0; i < config.MasterNum-len(config.MasterIP); i++ {
+	loop:
+		for _, ipr := range config.IPRange {
+			ips, err := utils.GetAllIPS(ipr.IPRange)
+			if err != nil {
+				return nil, err
+			}
+		findIP:
+			for _, ip := range ips {
+				if strings.HasSuffix(ip, ".0") || strings.HasSuffix(ip, ".255") {
+					continue
+				}
+				for _, o := range out {
+					if o.IP == ip {
+						continue findIP
+					}
+				}
+				out = append(out, &model.MachineConfig{
+					Name:      fmt.Sprintf("%s-%s-%d", config.NamePrefix, role, masterIndex),
+					HostName:  fmt.Sprintf("%s-%s-%d", config.HostNamePrefix, role, masterIndex),
+					Role:      role,
+					IP:        ip,
+					GatewayIP: ipr.GatewayIP,
+					Netmask:   ipr.Netmask,
+				})
+				masterIndex++
+				break loop
+			}
+		}
+	}
+	return out, nil
+}
+
+func generateWorkerMachine(masters []*model.MachineConfig, config *model.BezelConfig) ([]*model.MachineConfig, error) {
+	var workerIndex int
+	role := "worker"
+	out := make([]*model.MachineConfig, 0)
+	for i := 0; i < config.MachineNum-config.MasterNum; i++ {
+	loop:
+		for _, ipr := range config.IPRange {
+			ips, err := utils.GetAllIPS(ipr.IPRange)
+			if err != nil {
+				return nil, err
+			}
+		findIP:
+			for _, ip := range ips {
+				if strings.HasSuffix(ip, ".0") || strings.HasSuffix(ip, ".255") {
+					continue
+				}
+				for _, m := range masters {
+					if m.IP == ip {
+						continue findIP
+					}
+				}
+				for _, o := range out {
+					if o.IP == ip {
+						continue findIP
+					}
+				}
+				out = append(out, &model.MachineConfig{
+					Name:      fmt.Sprintf("%s-%s-%d", config.NamePrefix, role, workerIndex),
+					HostName:  fmt.Sprintf("%s-%s-%d", config.HostNamePrefix, role, workerIndex),
+					Role:      role,
+					IP:        ip,
+					GatewayIP: ipr.GatewayIP,
+					Netmask:   ipr.Netmask,
+				})
+				workerIndex++
+				break loop
+			}
+		}
+	}
+	return out, nil
+}
+
+func generateDiamondConfig(config *model.BezelConfig) *model.DiamondConfig {
+	return &model.DiamondConfig{
+		Name:           config.Name,
+		Arranger:       config.Arranger,
+		UpstreamDNS:    config.UpstreamDNS,
+		DockerRegistry: config.DockerRegistry,
+		MachineNum:     config.MachineNum,
+		MasterNum:      config.MachineNum,
+		K8sMasterIP:    config.K8sMasterIP,
+	}
+}
+
+func validateBezelConfig(config *model.BezelConfig) error {
+	v := reflect.ValueOf(*config)
+	t := reflect.TypeOf(*config)
+	for i := 0; i < v.NumField(); i++ {
+		fName := t.Field(i).Name
+		log.Debug(fName)
+		if err := utils.ValidateValue(fName, v.Field(i).Interface()); err != nil {
+			log.Errorf("invalidate value of field %s: %s please input the right value", fName, err)
+			return err
+		}
+	}
+	return nil
+}
+
+func ScanConfigFields() (*model.GlobalConfig, error) {
+	machines := make([]*model.MachineConfig, 0)
 	defaultDiamondConfig := model.NewDefaultDiamondConfig()
 
 	diamond := ScanInputToStruct(defaultDiamondConfig).(*model.DiamondConfig)
-	machineNum, _ := strconv.Atoi(diamond.MachineNum)
-	log.Infof("Your have %d machine to configure details. \n", machineNum)
-	for i := 0; i < machineNum; i++ {
+	log.Infof("Your have %d machine to configure details. \n", diamond.MachineNum)
+	for i := 0; i < diamond.MachineNum; i++ {
 		log.Printf("\nYour are configuring the machine %d: \n", i)
 		defaultMachineConfig := model.NewDefaultMachineConfig()
-		machineConfig := ScanInputToStruct(defaultMachineConfig).(*model.MachineConfig)
-		machineConfigs = append(machineConfigs, machineConfig)
+		machine := ScanInputToStruct(defaultMachineConfig).(*model.MachineConfig)
+		machines = append(machines, machine)
 	}
 	return &model.GlobalConfig{
 		Diamond:  diamond,
-		Machines: machineConfigs,
-	}
+		Machines: machines,
+	}, nil
 }
 
 func ScanInputToStruct(obj interface{}) interface{} {
@@ -86,7 +260,7 @@ func ScanInputToStruct(obj interface{}) interface{} {
 				log.Infof("No input on field %s, will use the default value. ", fName)
 				break
 			}
-			if err := utils.ValidateScanValue(fName, input); err != nil {
+			if err := utils.ValidateValue(fName, input); err != nil {
 				log.Errorf("invalidate value of field %s: %s please input the right value", fName, err)
 				continue
 			}
@@ -134,7 +308,7 @@ func SplitFromGlobalConfig(cfgPath, outputDir string) (err error) {
 	}
 
 	var haPeers []model.Peer
-	if gc.Diamond.MasterNum == "1" {
+	if gc.Diamond.MasterNum == 1 {
 		haPeers = []model.Peer{}
 	} else {
 		haPeers = model.NewHaPeer(haPeer)

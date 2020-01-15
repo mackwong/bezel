@@ -26,12 +26,12 @@ func NewParseCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return parseAllTemplates(templateDir, OutPutDir, sc)
+			return parseAllTemplates(templateDir, outPutDir, sc)
 		},
 	}
 	parseCmd.Flags().StringVarP(&sourceFile, "source", "s", "", "Source files.")
 	parseCmd.Flags().StringVarP(&templateDir, "template-dir", "t", "", "Target template path.")
-	parseCmd.Flags().StringVarP(&OutPutDir, "output", "o", "./", "The dir for store configs")
+	parseCmd.Flags().StringVarP(&outPutDir, "output", "o", "./", "The dir for store configs")
 
 	_ = parseCmd.MarkFlagRequired("source")
 	_ = parseCmd.MarkFlagRequired("template")
