@@ -72,6 +72,10 @@ func parseAllTemplates(templateDir, outputDir string, sc *model.SubConfig) error
 		return nil
 	}
 	err := filepath.Walk(templateDir, listFunc)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
 
 	tmpl, err := template.ParseFiles(files...)
 	if err != nil {
