@@ -20,7 +20,6 @@ func NewParseCmd() *cobra.Command {
 	parseCmd := &cobra.Command{
 		Use:           "parse",
 		Short:         "Load sub config infos, render templates to destination files",
-		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			sc, err := loadSubConfig(sourceFile)
 			if err != nil {
@@ -32,7 +31,7 @@ func NewParseCmd() *cobra.Command {
 		},
 	}
 	parseCmd.Flags().StringVarP(&sourceFile, "source", "s", "", "Source files.")
-	parseCmd.Flags().StringVarP(&templateDir, "template-dir", "t", "", "Target template path.")
+	parseCmd.Flags().StringVarP(&templateDir, "template", "t", "", "Target template path.")
 	parseCmd.Flags().StringVarP(&outPutDir, "output", "o", "./", "The dir for store configs")
 
 	_ = parseCmd.MarkFlagRequired("source")

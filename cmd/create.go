@@ -30,7 +30,6 @@ func NewCreateCmd() *cobra.Command {
 	createCmd := &cobra.Command{
 		Use:           "create",
 		Short:         "Create global config form edge cluster",
-		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var gc *model.GlobalConfig
 			var err error
@@ -275,7 +274,7 @@ func ScanConfigFields() (*model.GlobalConfig, error) {
 	diamond := ScanInputToStruct(defaultDiamondConfig).(*model.DiamondConfig)
 	log.Infof("Your have %d machine to configure details. \n", diamond.MachineNum)
 	for i := 0; i < int(diamond.MachineNum); i++ {
-		log.Printf("\nYour are configuring the machine %d: \n", i)
+		log.Printf("Your are configuring the machine %d: \n", i)
 		defaultMachineConfig := model.NewDefaultMachineConfig()
 		machine := ScanInputToStruct(defaultMachineConfig).(*model.MachineConfig)
 		machines = append(machines, machine)
@@ -304,7 +303,7 @@ func ScanInputToStruct(obj interface{}) interface{} {
 	for i := 0; i < vv.NumField(); i++ {
 		fName := t.Field(i).Name
 		for {
-			log.Infof("Please configure %s:\n", fName)
+			fmt.Printf("==> please configure %s:\n    ", fName)
 			input := utils.ScanCmdline()
 			if input == "" {
 				log.Infof("No input on field %s, will use the default value. ", fName)

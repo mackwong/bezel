@@ -5,7 +5,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var debug bool
+var (
+	debug   bool
+	Version = "UNKNOWN"
+)
 
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
@@ -13,6 +16,7 @@ func NewRootCmd() *cobra.Command {
 		Short:             "Bezel control interface.",
 		SilenceUsage:      true,
 		DisableAutoGenTag: true,
+		Version:           Version,
 		Long:              "",
 		PersistentPreRun:  bezelPersistentPreRun,
 	}
