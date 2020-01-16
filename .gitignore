@@ -1,6 +1,5 @@
 .idea
 bin/
-vendor
 sub/
 tests/edge-config.yaml
 demo.yaml
