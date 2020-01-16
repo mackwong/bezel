@@ -1,4 +1,4 @@
-module gitlab.bj.sensetime.com/diamond/bezel
+module gitlab.bj.sensetime.com/diamond/service-providers/bezel
 
 go 1.13
 

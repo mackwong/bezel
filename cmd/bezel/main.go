@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gitlab.bj.sensetime.com/diamond/bezel/cmd"
+	"gitlab.bj.sensetime.com/diamond/service-providers/bezel/cmd"
 	"os"
 )
 

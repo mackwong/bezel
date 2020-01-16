@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"gitlab.bj.sensetime.com/diamond/bezel/pkg/model"
+	"gitlab.bj.sensetime.com/diamond/service-providers/bezel/pkg/model"
 	"gopkg.in/yaml.v2"
 	"gotest.tools/assert"
 	"io/ioutil"

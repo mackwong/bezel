@@ -3,7 +3,7 @@ package cmd
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"gitlab.bj.sensetime.com/diamond/bezel/pkg/model"
+	"gitlab.bj.sensetime.com/diamond/service-providers/bezel/pkg/model"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"

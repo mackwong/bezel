@@ -4,7 +4,11 @@ stages:
 pages:
   stage: UNIT-TEST
   image: registry.sensetime.com/wangjun3/golangci-lint
+  before_script:
+    - mkdir -p /go/src/gitlab.bj.sensetime.com/diamond/service-providers
+    - ln -s `pwd` /go/src/gitlab.bj.sensetime.com/diamond/service-providers/bezel
   script:
+    - cd /go/src/gitlab.bj.sensetime.com/diamond/service-providers/bezel
     - make lint
     - make test && mkdir -p public && cp coverage.html public/index.html
   artifacts:
