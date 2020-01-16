@@ -1,0 +1,33 @@
+diamond:
+  name: diamond-edge-ha
+  arranger: edgesite
+  upstreamDNS: 114.114.114.114
+  dockerRegistry: 10.5.49.73
+  machine-num: 4
+  masternum: 4
+  k8sMasterIP: 10.4.72.231
+machines:
+  - name: node-master-0
+    hostname: ubuntu-master-0
+    role: master
+    ip: 10.4.72.1
+    gatewayIP: 10.4.72.254
+    netmask: 255.255.255.0
+  - name: node-master-1
+    hostname: ubuntu-master-1
+    role: master
+    ip: 10.4.72.2
+    gatewayIP: 10.4.72.254
+    netmask: 255.255.255.0
+  - name: node-master-2
+    hostname: ubuntu-master-2
+    role: master
+    ip: 10.4.73.1
+    gatewayIP: 10.4.73.254
+    netmask: 255.255.255.255
+  - name: node-worker-0
+    hostname: ubuntu-worker-0
+    role: worker
+    ip: 10.4.72.3
+    gatewayIP: 10.4.72.254
+    netmask: 255.255.255.0

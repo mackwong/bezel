@@ -25,7 +25,7 @@ func TestGetGlobalConfigByConfig(t *testing.T) {
 }
 
 func TestSplitFromGlobalConfig(t *testing.T) {
-	c, err := ioutil.ReadFile("../tests/edge-config.yaml")
+	c, err := ioutil.ReadFile("../tests/edge-config.yml")
 	assert.NilError(t, err)
 	target := model.GlobalConfig{}
 	err = yaml.Unmarshal(c, &target)

@@ -353,7 +353,7 @@ func SplitFromGlobalConfig(gc *model.GlobalConfig, outDir string) (err error) {
 	return writeSubConfigYaml(subConfigs, outDir)
 }
 
-func getSubConfigs(gc *model.GlobalConfig) []*model.SubConfig{
+func getSubConfigs(gc *model.GlobalConfig) []*model.SubConfig {
 	haPeer := make(map[string]string)
 	for _, machine := range gc.Machines {
 		if machine.Role == "master" {
