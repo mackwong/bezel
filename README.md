@@ -8,10 +8,10 @@
 ## 构建
 
 ```bash
-make arm64 #or amd64/windows
+make linux #or darwin/windows
 ```
 
-支持构建不同架构的版本，包含 linux(amd64/arm64), macos, windows.
+支持构建不同架构的版本，包含 linux(amd64/arm64), macOS(darwin), windows.
 
 ## 使用方法
 
@@ -45,57 +45,57 @@ make arm64 #or amd64/windows
          3.3.3.3
      ```
 
-- 通过配置文件方式产生
+    - 通过配置文件方式产生
 
-  首先通过下面命令生成示例配置文件：
+      首先通过下面命令生成示例配置文件：
 
-  ```bash
-  $ ./bezel gen
-  INFO demo.yaml is generated successfully, Please modify it and use `./bezel create -c demo.yaml` to generate edge configs
-  ```
+      ```bash
+      $ ./bezel gen
+      INFO demo.yaml is generated successfully, Please modify it and use `./bezel create -c demo.yaml` to generate edge configs
+      ```
 
-  示例配置文件格式如下：
+      示例配置文件格式如下：
 
-  ```yaml
-  #demo.yaml
-  name: diamond-edge-ha
-  machine-num: 4
-  master-num: 3
-  arranger: edgesite
-  upstream-dns: 114.114.114.114
-  docker-registry: 10.5.49.73
-  k8sMaster-ip: 10.4.72.231
-  ip-range:
-    - ipRange: 10.4.72.1/24
-      gatewayIP: 10.4.72.254
-      netmask: 255.255.255.0
-    - ipRange: 10.4.73.1/32
-      gatewayIP: 10.4.73.254
-      netmask: 255.255.255.255
-  master-ip:
-    - 10.4.72.1
-    - 10.4.72.2
-    - 10.4.73.1
-  name-format: node-{{.Role}}-{{.Index}}
-  hostname-format: ubuntu-{{.Role}}-{{.Index}}
-  ```
+      ```yaml
+      #demo.yaml
+      name: diamond-edge-ha
+      machine-num: 4
+      master-num: 3
+      arranger: edgesite
+      upstream-dns: 114.114.114.114
+      docker-registry: 10.5.49.73
+      k8sMaster-ip: 10.4.72.231
+      ip-range:
+        - ipRange: 10.4.72.1/24
+          gatewayIP: 10.4.72.254
+          netmask: 255.255.255.0
+        - ipRange: 10.4.73.1/32
+          gatewayIP: 10.4.73.254
+          netmask: 255.255.255.255
+      master-ip:
+        - 10.4.72.1
+        - 10.4.72.2
+        - 10.4.73.1
+      name-format: node-{{.Role}}-{{.Index}}
+      hostname-format: ubuntu-{{.Role}}-{{.Index}}
+      ```
 
-  需要说明的是：
+      需要说明的是：
 
-  1.  如果 master-ip 不需要特别指定，这个字段可以不写。master 会从 IP 段中自动分配
-  2.  `name` 和 `hostname` 目前支持 `Role`,`Index`,`IP`三个字段。
+      1.  如果 master-ip 不需要特别指定，这个字段可以不写。master 会从 IP 段中自动分配
+      2.  `name` 和 `hostname` 目前支持 `Role`,`Index`,`IP`三个字段。
 
-  用户在此配置文件进行相应修改后，执行下面命令即可生成配置文件：
+      用户在此配置文件进行相应修改后，执行下面命令即可生成配置文件：
 
-  ```bash
-  $ bezel create -c demo.yaml
-  INFO edge-config.yaml generated successfully
-  INFO Sub config will write to sub/sub-edge-config-master-10.4.72.1.yaml
-  INFO Sub config will write to sub/sub-edge-config-master-10.4.72.2.yaml
-  INFO Sub config will write to sub/sub-edge-config-master-10.4.73.1.yaml
-  INFO Sub config will write to sub/sub-edge-config-worker-10.4.72.3.yaml
-  INFO sub files ./ generated successfully
-  ```
+      ```bash
+      $ bezel create -c demo.yaml
+      INFO edge-config.yaml generated successfully
+      INFO Sub config will write to sub/sub-edge-config-master-10.4.72.1.yaml
+      INFO Sub config will write to sub/sub-edge-config-master-10.4.72.2.yaml
+      INFO Sub config will write to sub/sub-edge-config-master-10.4.73.1.yaml
+      INFO Sub config will write to sub/sub-edge-config-worker-10.4.72.3.yaml
+      INFO sub files ./ generated successfully
+      ```
 
 2. 渲染模板文件
 
@@ -114,4 +114,4 @@ make arm64 #or amd64/windows
 
 ## Binary
 
-[下载链接](https://gitlab.bj.sensetime.com/diamond/service-providers/clickhouse/-/tags/)
+[下载链接](https://gitlab.bj.sensetime.com/diamond/service-providers/bezel/-/tags/)
