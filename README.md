@@ -2,7 +2,7 @@
 
 This project is the prototype of diamond-on-edge cli tool to configure cluster shaping and distrbute to devices.
 
-[![build status](http://gitlab.bj.sensetime.com/diamond/service-providers/bezel/badges/master/build.svg)](http://gitlab.bj.sensetime.com/diamond/service-providers/bezel/commits/master)
+[![build status](http://gitlab.bj.sensetime.com/diamond/service-providers/bezel/badges/master/pipeline.svg)](http://gitlab.bj.sensetime.com/diamond/service-providers/bezel/commits/master)
 [![coverage report](http://gitlab.bj.sensetime.com/diamond/service-providers/bezel/badges/master/coverage.svg)](http://gitlab.bj.sensetime.com/diamond/service-providers/bezel/commits/master)
 
 ## Build
