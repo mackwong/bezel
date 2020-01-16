@@ -78,13 +78,13 @@ type BezelConfig struct {
 	MachineNum     int64      `yaml:"machine-num"`
 	MasterNum      int64      `yaml:"master-num"`
 	Arranger       string     `yaml:"arranger"`
-	UpstreamDNS    string     `yaml:"upstreamDNS"`
-	DockerRegistry string     `yaml:"dockerRegistry"`
-	K8sMasterIP    string     `yaml:"k8sMasterIP"`
-	IPRange        []IPConfig `yaml:"ipRange"`
+	UpstreamDNS    string     `yaml:"upstream-dns"`
+	DockerRegistry string     `yaml:"docker-registry"`
+	K8sMasterIP    string     `yaml:"k8sMaster-ip"`
+	IPRange        []IPConfig `yaml:"ip-range"`
 	MasterIP       []string   `yaml:"master-ip"`
-	NamePrefix     string     `yaml:"name-prefix"`
-	HostNamePrefix string     `yaml:"hostname-prefix"`
+	NameFormat     string     `yaml:"name-format"`
+	HostNameFormat string     `yaml:"hostname-format"`
 }
 
 type IPConfig struct {
@@ -102,8 +102,8 @@ func NewSampleBezelConfig() *BezelConfig {
 		K8sMasterIP:    "10.4.72.231",
 		MasterNum:      3,
 		MachineNum:     4,
-		NamePrefix:     "node-",
-		HostNamePrefix: "node-",
+		NameFormat:     "node-{{.Role}}-{{.Index}}",
+		HostNameFormat: "ubuntu-{{.Role}}-{{.Index}}",
 		MasterIP: []string{
 			"10.4.72.1",
 			"10.4.72.2",
@@ -122,6 +122,12 @@ func NewSampleBezelConfig() *BezelConfig {
 			},
 		},
 	}
+}
+
+type Formatter struct {
+	Role  string `json:"role"`
+	IP    string `json:"ip"`
+	Index int    `json:"index"`
 }
 
 func NewHaPeer(haPeer map[string]string) []Peer {

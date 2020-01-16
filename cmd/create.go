@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"gitlab.bj.sensetime.com/diamond/bezel/pkg/model"
 	"gitlab.bj.sensetime.com/diamond/bezel/pkg/utils"
 	"gopkg.in/yaml.v2"
+	"html/template"
 	"io/ioutil"
 	"os"
 	"path"
@@ -45,10 +47,12 @@ func NewCreateCmd() *cobra.Command {
 			if err := writeEdgeConfigYaml(gc, globalConfigFile); err != nil {
 				return err
 			}
+			log.Infof("%s generated successfully\n", globalConfigFile)
 			if generateSubConfig {
-				if err := SplitFromGlobalConfig(globalConfigFile, outPutDir); err != nil {
+				if err := SplitFromGlobalConfig(gc, outPutDir); err != nil {
 					return nil
 				}
+				log.Infof("sub files %s generated successfully\n", outPutDir)
 			}
 			return nil
 		},
@@ -107,9 +111,13 @@ func generateMasterMachine(config *model.BezelConfig) ([]*model.MachineConfig, e
 				return nil, err
 			}
 			if isIn {
+				name, hostname, err := generateNameAndHostFormat(config.NameFormat, config.HostNameFormat, role, ip, masterIndex)
+				if err != nil {
+					return nil, err
+				}
 				out = append(out, &model.MachineConfig{
-					Name:      fmt.Sprintf("%s-%s-%d", config.NamePrefix, role, masterIndex),
-					HostName:  fmt.Sprintf("%s-%s-%d", config.HostNamePrefix, role, masterIndex),
+					Name:      name,
+					HostName:  hostname,
 					Role:      role,
 					IP:        ip,
 					GatewayIP: ipr.GatewayIP,
@@ -138,9 +146,13 @@ func generateMasterMachine(config *model.BezelConfig) ([]*model.MachineConfig, e
 						continue findIP
 					}
 				}
+				name, hostname, err := generateNameAndHostFormat(config.NameFormat, config.HostNameFormat, role, ip, masterIndex)
+				if err != nil {
+					return nil, err
+				}
 				out = append(out, &model.MachineConfig{
-					Name:      fmt.Sprintf("%s-%s-%d", config.NamePrefix, role, masterIndex),
-					HostName:  fmt.Sprintf("%s-%s-%d", config.HostNamePrefix, role, masterIndex),
+					Name:      name,
+					HostName:  hostname,
 					Role:      role,
 					IP:        ip,
 					GatewayIP: ipr.GatewayIP,
@@ -152,6 +164,36 @@ func generateMasterMachine(config *model.BezelConfig) ([]*model.MachineConfig, e
 		}
 	}
 	return out, nil
+}
+
+func generateNameAndHostFormat(namePattern, hostNamePattern, role, ip string, index int) (string, string, error) {
+	tmplName, err := template.New("name").Parse(namePattern)
+	if err != nil {
+		log.Errorf("parse name err: %s", err)
+		return "", "", err
+	}
+	tmplHost, err := template.New("hostname").Parse(hostNamePattern)
+	if err != nil {
+		log.Errorf("parse hostname err: %s", err)
+		return "", "", err
+	}
+	f := model.Formatter{
+		Role:  role,
+		IP:    ip,
+		Index: index,
+	}
+	var name, hostname bytes.Buffer
+	err = tmplName.Execute(&name, f)
+	if err != nil {
+		log.Errorf("parse name err: %s", err)
+		return "", "", err
+	}
+	err = tmplHost.Execute(&hostname, f)
+	if err != nil {
+		log.Errorf("parse name err: %s", err)
+		return "", "", err
+	}
+	return name.String(), hostname.String(), nil
 }
 
 func generateWorkerMachine(masters []*model.MachineConfig, config *model.BezelConfig) ([]*model.MachineConfig, error) {
@@ -180,9 +222,13 @@ func generateWorkerMachine(masters []*model.MachineConfig, config *model.BezelCo
 						continue findIP
 					}
 				}
+				name, hostname, err := generateNameAndHostFormat(config.NameFormat, config.HostNameFormat, role, ip, workerIndex)
+				if err != nil {
+					return nil, err
+				}
 				out = append(out, &model.MachineConfig{
-					Name:      fmt.Sprintf("%s-%s-%d", config.NamePrefix, role, workerIndex),
-					HostName:  fmt.Sprintf("%s-%s-%d", config.HostNamePrefix, role, workerIndex),
+					Name:      name,
+					HostName:  hostname,
 					Role:      role,
 					IP:        ip,
 					GatewayIP: ipr.GatewayIP,
@@ -302,21 +348,12 @@ func writeEdgeConfigYaml(gc *model.GlobalConfig, path string) (err error) {
 	return
 }
 
-func SplitFromGlobalConfig(cfgPath, outputDir string) (err error) {
-	var cfg []byte
-	cfg, err = ioutil.ReadFile(cfgPath)
-	if err != nil {
-		log.Errorf("read file %s err: %s", cfgPath, err)
-		return
-	}
+func SplitFromGlobalConfig(gc *model.GlobalConfig, outDir string) (err error) {
+	subConfigs := getSubConfigs(gc)
+	return writeSubConfigYaml(subConfigs, outDir)
+}
 
-	gc := &model.GlobalConfig{}
-	err = yaml.Unmarshal(cfg, gc)
-	if err != nil {
-		log.Errorf("Unmarshal file %s err: %s", cfgPath, err)
-		return
-	}
-
+func getSubConfigs(gc *model.GlobalConfig) []*model.SubConfig{
 	haPeer := make(map[string]string)
 	for _, machine := range gc.Machines {
 		if machine.Role == "master" {
@@ -331,6 +368,7 @@ func SplitFromGlobalConfig(cfgPath, outputDir string) (err error) {
 		haPeers = model.NewHaPeer(haPeer)
 	}
 
+	subConfigs := make([]*model.SubConfig, 0)
 	for _, machine := range gc.Machines {
 		subConfig := &model.SubConfig{
 			Arranger:       gc.Diamond.Arranger,
@@ -344,16 +382,23 @@ func SplitFromGlobalConfig(cfgPath, outputDir string) (err error) {
 			Role:           machine.Role,
 			HaPeer:         haPeers,
 		}
-		outFile := fmt.Sprintf("sub-edge-config-%s-%s.yaml", subConfig.Role, subConfig.IP)
-		dir := filepath.Join(outputDir, "sub")
-		if err = WriteSubConfigYaml(subConfig, dir, outFile); err != nil {
-			return
-		}
+		subConfigs = append(subConfigs, subConfig)
 	}
-	return
+	return subConfigs
 }
 
-func WriteSubConfigYaml(config *model.SubConfig, parentDir string, fileName string) (err error) {
+func writeSubConfigYaml(configs []*model.SubConfig, outDir string) error {
+	for _, config := range configs {
+		outFile := fmt.Sprintf("sub-edge-config-%s-%s.yaml", config.Role, config.IP)
+		dir := filepath.Join(outDir, "sub")
+		if err := doWriteSubConfigYaml(config, dir, outFile); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func doWriteSubConfigYaml(config *model.SubConfig, parentDir string, fileName string) (err error) {
 	yamlByte, err := yaml.Marshal(config)
 	if err != nil {
 		log.Errorf("can not marshal, err: %s", err)

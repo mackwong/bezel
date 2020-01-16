@@ -1,8 +1,9 @@
 build: ## Build
 	go build -o bin/bezel cmd/bezel/main.go
 
-test: ## Run the tests
-	go test -v $(shell go list ./... | grep -v /vendor/ | grep -v /test/)
+test:
+	echo 'mode: atomic' > coverage.txt && go test -covermode=atomic -coverprofile=coverage.txt -v -run="Test*" -timeout=30s ./...
+	go tool cover -html=coverage.txt -o coverage.html
 
 arm64: ## Build an arm64 static binary
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \

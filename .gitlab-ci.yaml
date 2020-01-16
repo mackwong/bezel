@@ -1,0 +1,14 @@
+stages:
+  - UNIT-TEST
+
+pages:
+  stage: UNIT-TEST
+  image: registry.sensetime.com/wangjun3/golangci-lint
+  script:
+    - make lint
+    - make test && mkdir -p public && cp coverage.html public/index.html
+  artifacts:
+    paths:
+      - public
+  tags:
+    - k8s

@@ -38,8 +38,8 @@ func ScanCmdline() string {
 func ValidateValue(field string, value interface{}) (err error) {
 	switch field {
 	case "Name", "HostName":
-		if match, _ := regexp.MatchString("[A-Za-z][A-Za-z0-9_]*", value.(string)); !match {
-			return errors.New("name and hostname shoule match [A-Za-z][A-Za-z0-9_]*")
+		if match, _ := regexp.MatchString("[A-Za-z][-A-Za-z0-9_]*", value.(string)); !match {
+			return errors.New("name and hostname shoule match [A-Za-z][-A-Za-z0-9_]*")
 		}
 	case "Arranger":
 		arrangerConst := map[string]bool{"k3s": true, "ke": true, "edgesite": true}

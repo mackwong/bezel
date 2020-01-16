@@ -26,7 +26,9 @@ func NewParseCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return parseAllTemplates(templateDir, outPutDir, sc)
+			err = parseAllTemplates(templateDir, outPutDir, sc)
+			log.Infof("parse templates successfully")
+			return err
 		},
 	}
 	parseCmd.Flags().StringVarP(&sourceFile, "source", "s", "", "Source files.")
@@ -43,7 +45,7 @@ func NewParseCmd() *cobra.Command {
 func loadSubConfig(configPath string) (*model.SubConfig, error) {
 	config, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		log.Error("load sub config %s err: %s", configPath, err)
+		log.Errorf("load sub config %s err: %s", configPath, err)
 		return nil, err
 	}
 

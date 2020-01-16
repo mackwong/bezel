@@ -2,5 +2,7 @@
 bin/
 vendor
 sub/
-edge-config.yaml
+tests/edge-config.yaml
 demo.yaml
+coverage.txt
+coverage.html
